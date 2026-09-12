@@ -36,8 +36,8 @@ jobs:
       - name: Extract Fingram project
         run: |
           mkdir -p source
-          ZIP=$(find . -maxdepth 1 -type f -name 'fingram_release_ready_v14*.zip' | head -1)
-          if [ -z "$ZIP" ]; then echo "v14 ZIP not found"; exit 1; fi
+          zip=./fingram_relaese_ready_v15.zip
+          if [ -z "$ZIP" ]; then echo "v15 ZIP not found"; exit 1; fi
           unzip -q "$ZIP" -d source
           APP_DIR=$(find source -type d -name android | head -1)
           echo "APP_DIR=$APP_DIR" >> "$GITHUB_ENV"
