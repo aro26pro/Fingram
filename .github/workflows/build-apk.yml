@@ -1,20 +1,21 @@
-name: Fingram Android Build
+name: Fingram Android Test APK
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
-      - name: Checkout
+      - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Java
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -23,34 +24,37 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK 36
-        run: |
-          sdkmanager "platforms;android-36" "build-tools;36.0.0"
-          yes | sdkmanager --licenses || true
+      - name: Install Android API 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
 
-      - name: Set up Gradle
+      - name: Set up Gradle 8.13
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.13'
 
-      - name: Extract Fingram project
+      - name: Extract existing Fingram Android project
+        shell: bash
         run: |
+          set -euo pipefail
+          ZIP="fingram_release_ready_v15.zip"
+          test -f "$ZIP" || { echo "Missing $ZIP"; exit 1; }
           mkdir -p source
-          zip=./fingram_relaese_ready_v15.zip
-          if [ -z "$ZIP" ]; then echo "v15 zip not found"; exit 1; fi
           unzip -q "$ZIP" -d source
-          APP_DIR=$(find source -type d -name android | head -1)
+          APP_DIR=$(find source -type f -path '*/android/settings.gradle' -printf '%h\n' | head -n 1)
+          test -n "$APP_DIR" || { echo "Android project not found in $ZIP"; exit 1; }
           echo "APP_DIR=$APP_DIR" >> "$GITHUB_ENV"
           echo "Android project: $APP_DIR"
 
-      - name: Build APK
+      - name: Build debug APK
+        shell: bash
         run: |
+          set -euo pipefail
           cd "$APP_DIR"
-          gradle assembleDebug --no-daemon
+          gradle assembleDebug --no-daemon -PfingramUrlOverride=https://aro26pro.pythonanywhere.com/
 
-      - name: Upload APK
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: fingram-debug-apk
-          path: |
-            **/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          path: source/**/android/app/build/outputs/apk/debug/*.apk
