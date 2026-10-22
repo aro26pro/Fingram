@@ -8,9 +8,8 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
-
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -34,50 +33,38 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Extract existing Fingram Android project
+      - name: Extract Fingram Android project
         shell: bash
         run: |
           set -euo pipefail
           ZIP="fingram_release_ready_v15.zip"
-          test -f "$ZIP" || { echo "Missing $ZIP"; exit 1; }
+          test -f "$ZIP"
           mkdir -p source
           unzip -q "$ZIP" -d source
           APP_DIR=$(find source -type f -path '*/android/settings.gradle' -printf '%h\n' | head -n 1)
-          test -n "$APP_DIR" || { echo "Android project not found in $ZIP"; exit 1; }
+          test -n "$APP_DIR" || { echo "Android project not found"; exit 1; }
           echo "APP_DIR=$APP_DIR" >> "$GITHUB_ENV"
-          echo "Android project: $APP_DIR"
 
-      - name: Fix legacy Gradle BuildConfig placement
+      - name: Fix FINGRAM_URL in Gradle configuration
         shell: bash
         run: |
           python3 - <<'PY'
-          import os, re
-          path = os.path.join(os.environ['APP_DIR'], 'app', 'build.gradle')
-          with open(path, encoding='utf-8') as f:
-              content = f.read()
-          pattern = r'(?m)^(\s*)buildConfigField\s+([\'\"]String[\'\"]),\s*([\'\"]FINGRAM_URL[\'\"]),\s*(.+)
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd "$APP_DIR"
-          gradle assembleDebug --no-daemon -PfingramUrlOverride=https://aro26pro.pythonanywhere.com/
-
-      - name: Upload debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: fingram-debug-apk
-          if-no-files-found: error
-          path: source/**/android/app/build/outputs/apk/debug/*.apk
-
-          matches = list(re.finditer(pattern, content))
-          if len(matches) != 1:
-              raise SystemExit(f'Expected one FINGRAM_URL buildConfigField, found {len(matches)}')
-          field = matches[0].group(0).strip()
-          content = content[:matches[0].start()] + content[matches[0].end():]
-          content = re.sub(r'(defaultConfig\s*\{)', lambda m: m.group(1) + '\\n        ' + field, content, count=1)
-          with open(path, 'w', encoding='utf-8') as f:
-              f.write(content)
-          print('Moved FINGRAM_URL into defaultConfig')
+          import os
+          from pathlib import Path
+          p = Path(os.environ["APP_DIR"]) / "app" / "build.gradle"
+          lines = p.read_text().splitlines()
+          url_lines = [line for line in lines if "buildConfigField" in line and "FINGRAM_URL" in line]
+          if len(url_lines) != 1:
+              raise SystemExit("Expected exactly one FINGRAM_URL configuration")
+          lines = [line for line in lines if line not in url_lines]
+          for i, line in enumerate(lines):
+              if "defaultConfig" in line and "{" in line:
+                  lines.insert(i + 1, "        " + url_lines[0].strip())
+                  break
+          else:
+              raise SystemExit("defaultConfig block missing")
+          p.write_text("\n".join(lines) + "\n")
+          print("Corrected BuildConfig placement")
           PY
 
       - name: Build debug APK
@@ -85,7 +72,7 @@ jobs:
         run: |
           set -euo pipefail
           cd "$APP_DIR"
-          gradle assembleDebug --no-daemon -PfingramUrlOverride=https://aro26pro.pythonanywhere.com/
+          gradle assembleDebug --no-daemon
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
