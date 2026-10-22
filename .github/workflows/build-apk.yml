@@ -47,6 +47,39 @@ jobs:
           echo "APP_DIR=$APP_DIR" >> "$GITHUB_ENV"
           echo "Android project: $APP_DIR"
 
+      - name: Fix legacy Gradle BuildConfig placement
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os, re
+          path = os.path.join(os.environ['APP_DIR'], 'app', 'build.gradle')
+          with open(path, encoding='utf-8') as f:
+              content = f.read()
+          pattern = r'(?m)^(\s*)buildConfigField\s+([\'\"]String[\'\"]),\s*([\'\"]FINGRAM_URL[\'\"]),\s*(.+)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$APP_DIR"
+          gradle assembleDebug --no-daemon -PfingramUrlOverride=https://aro26pro.pythonanywhere.com/
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: fingram-debug-apk
+          if-no-files-found: error
+          path: source/**/android/app/build/outputs/apk/debug/*.apk
+
+          matches = list(re.finditer(pattern, content))
+          if len(matches) != 1:
+              raise SystemExit(f'Expected one FINGRAM_URL buildConfigField, found {len(matches)}')
+          field = matches[0].group(0).strip()
+          content = content[:matches[0].start()] + content[matches[0].end():]
+          content = re.sub(r'(defaultConfig\s*\{)', lambda m: m.group(1) + '\\n        ' + field, content, count=1)
+          with open(path, 'w', encoding='utf-8') as f:
+              f.write(content)
+          print('Moved FINGRAM_URL into defaultConfig')
+          PY
+
       - name: Build debug APK
         shell: bash
         run: |
