@@ -65,6 +65,28 @@ jobs:
           print("FINGRAM_URL configured with a literal HTTPS URL")
           PY
 
+      - name: Fix checked exception in Android update flow
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          p = Path(os.environ["APP_DIR"]) / "app/src/main/java/com/fingram/app/MainActivity.java"
+          s = p.read_text()
+          call = "appUpdateManager.startUpdateFlowForResult(info, AppUpdateType.FLEXIBLE, this, UPDATE_REQUEST_CODE);"
+          n = s.count(call)
+          if n != 2:
+              raise SystemExit(f"Expected two update calls, found {n}")
+          replacement = """try {
+                      appUpdateManager.startUpdateFlowForResult(info, AppUpdateType.FLEXIBLE, this, UPDATE_REQUEST_CODE);
+                  } catch (android.content.IntentSender.SendIntentException e) {
+                      android.util.Log.w("Fingram", "Unable to start in-app update", e);
+                  }"""
+          s = s.replace(call, replacement)
+          p.write_text(s)
+          print("Handled SendIntentException in both update flows")
+          PY
+
       - name: Build debug APK
         shell: bash
         run: |
