@@ -1,0 +1,25 @@
+name: Fingram
+options:
+  deploymentTarget:
+    iOS: '16.0'
+targets:
+  Fingram:
+    type: application
+    platform: iOS
+    sources:
+      - path: Fingram
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.fingram.ios
+        SWIFT_VERSION: '5.0'
+        TARGETED_DEVICE_FAMILY: '1,2'
+        MARKETING_VERSION: '0.1.0'
+        CURRENT_PROJECT_VERSION: '1'
+    info:
+      path: Fingram/Info.plist
+      properties:
+        CFBundleDisplayName: Fingram
+        UILaunchScreen: {}
+        NSCameraUsageDescription: Fingram may use your camera when you choose to create a photo or video post.
+        NSMicrophoneUsageDescription: Fingram may use your microphone when you choose to record audio or video.
+        NSPhotoLibraryUsageDescription: Fingram may access photos you choose to upload.
