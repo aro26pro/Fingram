@@ -1,0 +1,40 @@
+{
+  "name": "fingram-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Fingram desktop preview for Windows and macOS",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:windows": "electron-builder --win portable --x64 --publish never",
+    "build:mac": "electron-builder --mac zip --x64 --arm64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "45.0.0",
+    "electron-builder": "26.17.0"
+  },
+  "build": {
+    "appId": "com.fingram.desktop",
+    "productName": "Fingram",
+    "asar": true,
+    "files": [
+      "main.js",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "portable"
+      ]
+    },
+    "mac": {
+      "target": [
+        "zip"
+      ],
+      "category": "public.app-category.social-networking"
+    },
+    "publish": null
+  }
+}
