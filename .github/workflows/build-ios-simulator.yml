@@ -1,0 +1,47 @@
+name: Fingram iOS Simulator Preview
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-simulator:
+    runs-on: macos-15
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Build for iOS Simulator without signing
+        run: |
+          xcodebuild \
+            -project ios/Fingram.xcodeproj \
+            -scheme Fingram \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/ios \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Archive simulator preview
+        run: |
+          cd build/ios/Build/Products/Debug-iphonesimulator
+          zip -qry "$GITHUB_WORKSPACE/Fingram-iOS-Simulator.zip" Fingram.app
+
+      - name: Upload simulator preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: fingram-ios-simulator
+          path: Fingram-iOS-Simulator.zip
+          if-no-files-found: error
